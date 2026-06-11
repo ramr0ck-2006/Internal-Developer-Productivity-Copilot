@@ -25,31 +25,18 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 
 def answer_query(query, chat_history=None, threshold=0.8):
-    """
-    Retrieves relevant chunks with FAISS, filters by L2 distance threshold,
-    uses optional conversation history, and generates an answer via Groq.
-    """
     # 1. FAISS similarity search with scores
     docs_and_scores = faiss_db.similarity_search_with_score(query, k=3)
 
-    # ---- DEBUG: print all scores to Streamlit Cloud logs ----
-    print(f"\nQuery: {query}")
-    for doc, score in docs_and_scores:
-        print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
-    print("-" * 40)
-    # ---- END DEBUG ----
-
     if not docs_and_scores:
-        return "I don't have that information in my knowledge base.", []
+        return "I don't have that information in my knowledge base.", [], []
 
-    # 2. TEMPORARILY DISABLE THRESHOLD – return all retrieved docs
-    # relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
-    # if not relevant:
-    #     return "I don't have that information in my knowledge base.", []
-    # docs = [doc for doc, _ in relevant]
+    # Collect scores for display
+    scores_list = [round(score, 4) for _, score in docs_and_scores]
+    sources = list(set([doc.metadata["source"] for doc, _ in docs_and_scores]))
+
+    # 2. Temporarily disable threshold – return all retrieved docs
     docs = [doc for doc, _ in docs_and_scores]
-
-    sources = list(set([doc.metadata["source"] for doc in docs]))
     context = "\n\n---\n\n".join([d.page_content for d in docs])
 
     # 3. System prompt + history
@@ -86,4 +73,4 @@ Answer:"""
         max_tokens=500,
     )
     answer = response.choices[0].message.content
-    return answer, sources
+    return answer, sources, scores_list

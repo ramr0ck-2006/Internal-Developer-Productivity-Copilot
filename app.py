@@ -88,15 +88,20 @@ if prompt := st.chat_input("e.g., How do I expose a Kubernetes service?"):
 
     # Generate answer
     with st.chat_message("assistant"):
-        with st.spinner("Searching the knowledge base..."):
-            answer, sources = answer_query(prompt, chat_history=history, threshold=0.8)
+             with st.spinner("Searching the knowledge base..."):
+            answer, sources, scores = answer_query(prompt, chat_history=history)
         if not answer.strip():
             answer = "I couldn't generate an answer. Please rephrase your question."
         st.markdown(answer)
-        if sources:
-            with st.expander("📚 Sources"):
-                for src in sources:
-                    st.markdown(f"- {src}")
+        if sources or scores:
+            with st.expander("📚 Sources & Scores"):
+                if scores:
+                    st.markdown("**Top‑3 L2 distances (lower = better):**")
+                    for i, (src, sc) in enumerate(zip(sources, scores)):
+                        st.markdown(f"- Chunk {i+1}: source `{src}` — score `{sc}`")
+                elif sources:
+                    for src in sources:
+                        st.markdown(f"- {src}")
 
     # Store assistant message
     st.session_state.messages.append({
