@@ -32,21 +32,23 @@ def answer_query(query, chat_history=None, threshold=0.8):
     # 1. FAISS similarity search with scores
     docs_and_scores = faiss_db.similarity_search_with_score(query, k=3)
 
-    # Debug print – keep these commented out unless tuning
-    # print(f"\nQuery: {query}")
-    # for doc, score in docs_and_scores:
-    #     print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
-    # print("-" * 40)
+    # ---- DEBUG: print all scores to Streamlit Cloud logs ----
+    print(f"\nQuery: {query}")
+    for doc, score in docs_and_scores:
+        print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
+    print("-" * 40)
+    # ---- END DEBUG ----
 
     if not docs_and_scores:
         return "I don't have that information in my knowledge base.", []
 
-    # 2. Filter by L2 distance (lower = more similar)
-    relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
-    if not relevant:
-        return "I don't have that information in my knowledge base.", []
+    # 2. TEMPORARILY DISABLE THRESHOLD – return all retrieved docs
+    # relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
+    # if not relevant:
+    #     return "I don't have that information in my knowledge base.", []
+    # docs = [doc for doc, _ in relevant]
+    docs = [doc for doc, _ in docs_and_scores]
 
-    docs = [doc for doc, _ in relevant]
     sources = list(set([doc.metadata["source"] for doc in docs]))
     context = "\n\n---\n\n".join([d.page_content for d in docs])
 
@@ -85,10 +87,3 @@ Answer:"""
     )
     answer = response.choices[0].message.content
     return answer, sources
-
-
-if __name__ == "__main__":
-    q = "What is a Pod?"
-    ans, srcs = answer_query(q)
-    print("Answer:", ans)
-    print("Sources:", srcs)
