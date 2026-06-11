@@ -10,12 +10,11 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # ---- Load FAISS vector store ----
-# FAISS index must exist in ./faiss_index (created by ingest.py)
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 faiss_db = FAISS.load_local(
     "faiss_index",
     embeddings,
-    allow_dangerous_deserialization=True,   # required for pickle-based index
+    allow_dangerous_deserialization=True,
 )
 
 # ---- Groq client ----
@@ -27,15 +26,13 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 def answer_query(query, chat_history=None, threshold=0.8):
     """
-    Retrieves relevant chunks using FAISS (L2 distance),
-    filters by relevance threshold,
-    optionally uses conversation history,
-    and generates an answer via Groq LLM.
+    Retrieves relevant chunks with FAISS, filters by L2 distance threshold,
+    uses optional conversation history, and generates an answer via Groq.
     """
-    # 1. FAISS similarity search with scores (lower L2 distance = more similar)
+    # 1. FAISS similarity search with scores
     docs_and_scores = faiss_db.similarity_search_with_score(query, k=3)
 
-    # ---- Debug (uncomment to tune threshold) ----
+    # Debug print – keep these commented out unless tuning
     # print(f"\nQuery: {query}")
     # for doc, score in docs_and_scores:
     #     print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
@@ -44,7 +41,7 @@ def answer_query(query, chat_history=None, threshold=0.8):
     if not docs_and_scores:
         return "I don't have that information in my knowledge base.", []
 
-    # 2. Filter by L2 distance threshold (lower is better)
+    # 2. Filter by L2 distance (lower = more similar)
     relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
     if not relevant:
         return "I don't have that information in my knowledge base.", []
@@ -53,7 +50,7 @@ def answer_query(query, chat_history=None, threshold=0.8):
     sources = list(set([doc.metadata["source"] for doc in docs]))
     context = "\n\n---\n\n".join([d.page_content for d in docs])
 
-    # 3. Build system prompt + optional history
+    # 3. System prompt + history
     system_prompt = {
         "role": "system",
         "content": (
@@ -95,8 +92,3 @@ if __name__ == "__main__":
     ans, srcs = answer_query(q)
     print("Answer:", ans)
     print("Sources:", srcs)
-
-    print(f"\nQuery: {query}")
-for doc, score in docs_and_scores:
-    print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
-print("-" * 40)
