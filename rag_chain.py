@@ -2,19 +2,20 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from groq import Groq
 
 # ---- Load .env ----
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# ---- Vectorstore ----
+# ---- Load FAISS vector store ----
+# FAISS index must exist in ./faiss_index (created by ingest.py)
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectordb = Chroma(
-    collection_name="kubernetes_docs",
-    persist_directory="./chroma_db",
-    embedding_function=embeddings
+faiss_db = FAISS.load_local(
+    "faiss_index",
+    embeddings,
+    allow_dangerous_deserialization=True,   # required for pickle-based index
 )
 
 # ---- Groq client ----
@@ -24,34 +25,35 @@ if not GROQ_API_KEY:
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
-def answer_query(query, chat_history=None, threshold=0.5):
+def answer_query(query, chat_history=None, threshold=0.8):
     """
-    Retrieves relevant chunks, filters by relevance threshold,
-    optionally includes conversation history, and generates an answer.
+    Retrieves relevant chunks using FAISS (L2 distance),
+    filters by relevance threshold,
+    optionally uses conversation history,
+    and generates an answer via Groq LLM.
     """
-    # 1. Retrieve with scores
-    results = vectordb.similarity_search_with_score(query, k=3)
+    # 1. FAISS similarity search with scores (lower L2 distance = more similar)
+    docs_and_scores = faiss_db.similarity_search_with_score(query, k=3)
 
-    # ---- DEBUG: show scores in terminal ----
-    print(f"\nQuery: {query}")
-    for doc, score in results:
-        print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
-    print("-" * 40)
-    # ---------------------------------------
+    # ---- Debug (uncomment to tune threshold) ----
+    # print(f"\nQuery: {query}")
+    # for doc, score in docs_and_scores:
+    #     print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
+    # print("-" * 40)
 
-    if not results:
+    if not docs_and_scores:
         return "I don't have that information in my knowledge base.", []
 
-    # 2. Filter by threshold
-    relevant_docs = [(doc, score) for doc, score in results if score <= threshold]
-    if not relevant_docs:
+    # 2. Filter by L2 distance threshold (lower is better)
+    relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
+    if not relevant:
         return "I don't have that information in my knowledge base.", []
 
-    docs = [doc for doc, _ in relevant_docs]
+    docs = [doc for doc, _ in relevant]
     sources = list(set([doc.metadata["source"] for doc in docs]))
     context = "\n\n---\n\n".join([d.page_content for d in docs])
 
-    # 3. Build system prompt + history
+    # 3. Build system prompt + optional history
     system_prompt = {
         "role": "system",
         "content": (
@@ -77,7 +79,7 @@ Question: {query}
 Answer:"""
     messages.append({"role": "user", "content": user_message})
 
-    # 4. Call Groq LLM
+    # 4. Call Groq
     response = groq_client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=messages,
@@ -89,8 +91,12 @@ Answer:"""
 
 
 if __name__ == "__main__":
-    # Simple test from command line
     q = "What is a Pod?"
     ans, srcs = answer_query(q)
     print("Answer:", ans)
     print("Sources:", srcs)
+
+    print(f"\nQuery: {query}")
+for doc, score in docs_and_scores:
+    print(f"  Score: {score:.4f}  |  Source: {doc.metadata['source']}")
+print("-" * 40)

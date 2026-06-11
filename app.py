@@ -89,7 +89,7 @@ if prompt := st.chat_input("e.g., How do I expose a Kubernetes service?"):
     # Generate answer
     with st.chat_message("assistant"):
         with st.spinner("Searching the knowledge base..."):
-            answer, sources = answer_query(prompt, chat_history=history, threshold=1.5)
+            answer, sources = answer_query(prompt, chat_history=history, threshold=0.8)
         if not answer.strip():
             answer = "I couldn't generate an answer. Please rephrase your question."
         st.markdown(answer)
