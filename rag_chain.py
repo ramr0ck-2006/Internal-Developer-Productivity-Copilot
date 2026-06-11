@@ -24,7 +24,7 @@ if not GROQ_API_KEY:
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
-def answer_query(query, chat_history=None, threshold=1.3):
+def answer_query(query, chat_history=None, threshold=1.6):
     """
     Retrieves relevant chunks with FAISS, filters by L2 distance threshold,
     uses optional conversation history, and generates an answer via Groq.
