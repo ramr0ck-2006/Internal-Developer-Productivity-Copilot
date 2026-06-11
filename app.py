@@ -27,18 +27,6 @@ st.markdown("""
     background-color: #f5f5f5;
     border-left: 4px solid #34a853;
 }
-.sources-box {
-    background: #fff3e0;
-    padding: 0.5rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    margin-top: 0.5rem;
-    border-left: 3px solid #ff9800;
-}
-.sources-box summary {
-    font-weight: bold;
-    cursor: pointer;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,14 +52,9 @@ for msg in st.session_state.messages:
         st.markdown(f'<div class="chat-message {css_class}">', unsafe_allow_html=True)
         st.markdown(msg["content"])
         if role == "assistant" and "sources" in msg and msg["sources"]:
-            with st.expander("📚 Sources & Scores"):
-                if "scores" in msg and msg["scores"]:
-                    st.markdown("**Top‑3 L2 distances (lower = better):**")
-                    for i, (src, sc) in enumerate(zip(msg["sources"], msg["scores"])):
-                        st.markdown(f"- Chunk {i+1}: source `{src}` — score `{sc}`")
-                else:
-                    for src in msg["sources"]:
-                        st.markdown(f"- {src}")
+            with st.expander("📚 Sources"):
+                for src in msg["sources"]:
+                    st.markdown(f"- {src}")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ---- Chat input ----
@@ -94,26 +77,20 @@ if prompt := st.chat_input("e.g., How do I expose a Kubernetes service?"):
     # Generate answer
     with st.chat_message("assistant"):
         with st.spinner("Searching the knowledge base..."):
-            answer, sources, scores = answer_query(prompt, chat_history=history)
+            answer, sources = answer_query(prompt, chat_history=history)
         if not answer.strip():
             answer = "I couldn't generate an answer. Please rephrase your question."
         st.markdown(answer)
-        if sources or scores:
-            with st.expander("📚 Sources & Scores"):
-                if scores:
-                    st.markdown("**Top‑3 L2 distances (lower = better):**")
-                    for i, (src, sc) in enumerate(zip(sources, scores)):
-                        st.markdown(f"- Chunk {i+1}: source `{src}` — score `{sc}`")
-                else:
-                    for src in sources:
-                        st.markdown(f"- {src}")
+        if sources:
+            with st.expander("📚 Sources"):
+                for src in sources:
+                    st.markdown(f"- {src}")
 
     # Store assistant message
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
-        "sources": sources,
-        "scores": scores  # store for history display
+        "sources": sources
     })
 
     # ---- Feedback buttons ----

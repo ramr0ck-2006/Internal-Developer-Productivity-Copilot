@@ -24,19 +24,24 @@ if not GROQ_API_KEY:
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
-def answer_query(query, chat_history=None, threshold=0.8):
+def answer_query(query, chat_history=None, threshold=1.5):
+    """
+    Retrieves relevant chunks with FAISS, filters by L2 distance threshold,
+    uses optional conversation history, and generates an answer via Groq.
+    """
     # 1. FAISS similarity search with scores
     docs_and_scores = faiss_db.similarity_search_with_score(query, k=3)
 
     if not docs_and_scores:
-        return "I don't have that information in my knowledge base.", [], []
+        return "I don't have that information in my knowledge base.", []
 
-    # Collect scores for display
-    scores_list = [round(score, 4) for _, score in docs_and_scores]
-    sources = list(set([doc.metadata["source"] for doc, _ in docs_and_scores]))
+    # 2. Filter by L2 distance (lower = more similar)
+    relevant = [(doc, score) for doc, score in docs_and_scores if score <= threshold]
+    if not relevant:
+        return "I don't have that information in my knowledge base.", []
 
-    # 2. Temporarily disable threshold – return all retrieved docs
-    docs = [doc for doc, _ in docs_and_scores]
+    docs = [doc for doc, _ in relevant]
+    sources = list(set([doc.metadata["source"] for doc in docs]))
     context = "\n\n---\n\n".join([d.page_content for d in docs])
 
     # 3. System prompt + history
@@ -73,4 +78,11 @@ Answer:"""
         max_tokens=500,
     )
     answer = response.choices[0].message.content
-    return answer, sources, scores_list
+    return answer, sources
+
+
+if __name__ == "__main__":
+    q = "What is a Pod?"
+    ans, srcs = answer_query(q)
+    print("Answer:", ans)
+    print("Sources:", srcs)
