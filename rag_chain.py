@@ -24,7 +24,7 @@ if not GROQ_API_KEY:
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
-def answer_query(query, chat_history=None, threshold=1.5):
+def answer_query(query, chat_history=None, threshold=1.3):
     """
     Retrieves relevant chunks with FAISS, filters by L2 distance threshold,
     uses optional conversation history, and generates an answer via Groq.
@@ -46,15 +46,17 @@ def answer_query(query, chat_history=None, threshold=1.5):
 
     # 3. System prompt + history
     system_prompt = {
-        "role": "system",
-        "content": (
-            "You are an internal engineering assistant. "
-            "Use ONLY the provided context excerpts to answer the question. "
-            "If the answer cannot be found in the context, say exactly: "
-            "'I don't have that information in my knowledge base.' "
-            "Do not include any source references in your answer."
-        )
-    }
+    "role": "system",
+    "content": (
+        "You are an internal engineering assistant. "
+        "Use ONLY the provided context excerpts. "
+        "If the exact answer is not clearly stated in the context, say EXACTLY: "
+        "'I don't have that information in my knowledge base.' "
+        "Do NOT add any extra words, explanations, or alternatives. "
+        "Never guess, infer, or use outside knowledge. "
+        "Do not include source references."
+    )
+}
 
     messages = [system_prompt]
 
