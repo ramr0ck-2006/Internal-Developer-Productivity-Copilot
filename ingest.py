@@ -10,6 +10,9 @@ urls = [
     "https://kubernetes.io/docs/concepts/overview/",
     "https://kubernetes.io/docs/concepts/architecture/",
     "https://kubernetes.io/docs/concepts/workloads/pods/",
+    "https://kubernetes.io/docs/concepts/services-networking/service/",
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+    "https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/",
 ]
 os.makedirs("data", exist_ok=True)
 
