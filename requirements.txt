@@ -12,3 +12,4 @@ tiktoken
 pandas
 python-dotenv
 protobuf>=3.20,<4
+numpy==1.23.5
